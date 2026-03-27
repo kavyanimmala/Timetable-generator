@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>College Timetable Generator</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <style>
+    body { background: #f0f4f8; }
+    .card { border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+    .card-header { background: #1a3c6e; color: #fff; border-radius: 12px 12px 0 0 !important; font-weight: 600; }
+    h1 { color: #1a3c6e; font-weight: 700; letter-spacing: 1px; }
+    .btn-generate { background: #1a3c6e; color: #fff; font-weight: 600; }
+    .btn-generate:hover { background: #14305a; color: #fff; }
+    table thead { background: #1a3c6e; color: #fff; }
+    .period-badge { background: #e8f0fe; color: #1a3c6e; border-radius: 6px; padding: 2px 8px; font-size: 0.85em; font-weight: 600; }
+    .day-header { background: #d0e4ff; font-weight: 700; text-align: center; }
+    #status-msg { min-height: 24px; }
+    .list-item-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #eee; }
+    .list-item-row:last-child { border-bottom: none; }
+    .break-cell { background: #fff3cd; color: #856404; font-weight: 600; text-align: center; white-space: nowrap; }
+    .lunch-cell { background: #d1e7dd; color: #0f5132; font-weight: 600; text-align: center; white-space: nowrap; }
+  </style>
+</head>
+<body>
+<div class="container py-4">
+  <div class="text-center mb-4">
+    <h1>&#128197; College Automatic Timetable Generator</h1>
+    <p class="text-muted">ECE Department &mdash; Final Year Project</p>
+  </div>
+
+  <div class="row g-4">
+    <!-- Subject Form -->
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">&#128218; Add Subject</div>
+        <div class="card-body">
+          <div class="mb-2">
+            <input type="text" id="subjectName" class="form-control" placeholder="Subject Name (e.g. VLSI Design)"/>
+          </div>
+          <div class="mb-2">
+            <input type="number" id="hoursPerWeek" class="form-control" placeholder="Hours Per Week (e.g. 4)" min="1" max="6"/>
+          </div>
+          <button class="btn btn-primary w-100" onclick="addSubject()">Add Subject</button>
+          <hr/>
+          <div id="subjectList" class="mt-2"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Teacher Form -->
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">&#128104;&#8205;&#127979; Add Teacher</div>
+        <div class="card-body">
+          <div class="mb-2">
+            <input type="text" id="teacherName" class="form-control" placeholder="Teacher Name (e.g. Dr. Ramesh)"/>
+          </div>
+          <div class="mb-2">
+            <input type="text" id="teacherSubject" class="form-control" placeholder="Assigned Subject (must match exactly)"/>
+          </div>
+          <button class="btn btn-success w-100" onclick="addTeacher()">Add Teacher</button>
+          <hr/>
+          <div id="teacherList" class="mt-2"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generate Button -->
+  <div class="text-center my-4">
+    <button class="btn btn-generate btn-lg px-5" onclick="generateTimetable()">&#9889; Generate Timetable</button>
+    <div id="status-msg" class="mt-2 text-danger fw-semibold"></div>
+  </div>
+
+  <!-- Timetable Display -->
+  <div class="card" id="timetableCard" style="display:none;">
+    <div class="card-header">&#128203; Weekly Timetable</div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-bordered mb-0" id="timetableTable">
+          <thead>
+            <tr>
+              <th>Day</th>
+              <th>Period 1</th>
+              <th>Period 2</th>
+              <th class="break-cell">☕ Break</th>
+              <th>Period 3</th>
+              <th>Period 4</th>
+              <th class="lunch-cell">🍱 Lunch</th>
+              <th>Period 5</th>
+              <th>Period 6</th>
+              <th>Period 7</th>
+            </tr>
+          </thead>
+          <tbody id="timetableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const BASE = '';
+
+  async function addSubject() {
+    const name = document.getElementById('subjectName').value.trim();
+    const hours = parseInt(document.getElementById('hoursPerWeek').value);
+    if (!name || !hours || hours < 1) return alert('Enter valid subject name and hours.');
+    await fetch(`${BASE}/subjects`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subjectName: name, hoursPerWeek: hours })
+    });
+    document.getElementById('subjectName').value = '';
+    document.getElementById('hoursPerWeek').value = '';
+    loadSubjects();
+  }
+
+  async function loadSubjects() {
+    const res = await fetch(`${BASE}/subjects`);
+    const data = await res.json();
+    const div = document.getElementById('subjectList');
+    if (!data.length) { div.innerHTML = '<small class="text-muted">No subjects added yet.</small>'; return; }
+    div.innerHTML = data.map(s =>
+      `<div class="list-item-row">
+        <span><strong>${s.subjectName}</strong> &mdash; ${s.hoursPerWeek} hrs/week</span>
+        <button class="btn btn-sm btn-outline-danger" onclick="deleteSubject(${s.id})">&#10005;</button>
+      </div>`
+    ).join('');
+  }
+
+  async function deleteSubject(id) {
+    await fetch(`${BASE}/subjects/${id}`, { method: 'DELETE' });
+    loadSubjects();
+  }
+
+  async function addTeacher() {
+    const name = document.getElementById('teacherName').value.trim();
+    const subject = document.getElementById('teacherSubject').value.trim();
+    if (!name || !subject) return alert('Enter teacher name and subject.');
+    await fetch(`${BASE}/teachers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teacherName: name, subject: subject })
+    });
+    document.getElementById('teacherName').value = '';
+    document.getElementById('teacherSubject').value = '';
+    loadTeachers();
+  }
+
+  async function loadTeachers() {
+    const res = await fetch(`${BASE}/teachers`);
+    const data = await res.json();
+    const div = document.getElementById('teacherList');
+    if (!data.length) { div.innerHTML = '<small class="text-muted">No teachers added yet.</small>'; return; }
+    div.innerHTML = data.map(t =>
+      `<div class="list-item-row">
+        <span><strong>${t.teacherName}</strong> &mdash; ${t.subject}</span>
+        <button class="btn btn-sm btn-outline-danger" onclick="deleteTeacher(${t.id})">&#10005;</button>
+      </div>`
+    ).join('');
+  }
+
+  async function deleteTeacher(id) {
+    await fetch(`${BASE}/teachers/${id}`, { method: 'DELETE' });
+    loadTeachers();
+  }
+
+  async function generateTimetable() {
+    const msg = document.getElementById('status-msg');
+    msg.textContent = 'Generating...';
+    const res = await fetch(`${BASE}/timetable/generate`);
+    if (!res.ok) {
+      const err = await res.text();
+      msg.textContent = err;
+      return;
+    }
+    const data = await res.json();
+    msg.textContent = '';
+    renderTimetable(data);
+  }
+
+  function renderTimetable(data) {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const tbody = document.getElementById('timetableBody');
+    tbody.innerHTML = '';
+
+    days.forEach(day => {
+      const dayEntries = data.filter(e => e.day === day).sort((a, b) => a.period - b.period);
+      const tr = document.createElement('tr');
+
+      let cells = `<td class="day-header">${day}</td>`;
+      dayEntries.forEach(e => {
+        cells += `<td><div><strong>${e.subject}</strong></div><small class="text-muted">${e.teacher}</small></td>`;
+        if (e.period === 2) cells += `<td class="break-cell">☕ Break</td>`;
+        if (e.period === 4) cells += `<td class="lunch-cell">🍱 Lunch</td>`;
+      });
+
+      tr.innerHTML = cells;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('timetableCard').style.display = '';
+  }
+
+  // Load existing data on page load
+  window.onload = () => {
+    loadSubjects();
+    loadTeachers();
+    fetch(`${BASE}/timetable/view`).then(r => r.json()).then(data => {
+      if (data.length) renderTimetable(data);
+    });
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+com\timetable\model\Teacher.class
+com\timetable\model\Timetable.class
+com\timetable\controller\TimetableController.class
+com\timetable\service\TimetableService.class
+com\timetable\repository\TimetableRepository.class
+com\timetable\repository\SubjectRepository.class
+com\timetable\controller\TeacherController.class
+com\timetable\model\Subject.class
+com\timetable\controller\SubjectController.class
+com\timetable\repository\TeacherRepository.class
+com\timetable\service\SubjectService.class
+com\timetable\service\TeacherService.class
